@@ -196,9 +196,26 @@ exports.getByUser = async (req, res) => {
     ),
     db.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.params.userId])
   ]);
+
+  // Attach items to each order (same shape as getById) so the UI can render them
+  // without a separate round-trip per order.
+  const orderIds = data.rows.map((o) => o.id);
+  let itemsByOrder = {};
+  if (orderIds.length > 0) {
+    const items = await db.query(
+      'SELECT * FROM order_items WHERE order_id = ANY($1::int[])',
+      [orderIds]
+    );
+    itemsByOrder = items.rows.reduce((acc, item) => {
+      (acc[item.order_id] = acc[item.order_id] || []).push(item);
+      return acc;
+    }, {});
+  }
+  const orders = data.rows.map((order) => ({ ...order, items: itemsByOrder[order.id] || [] }));
+
   const total = parseInt(count.rows[0].count);
   res.set({ 'X-Total-Count': total, 'X-Page': page, 'X-Limit': limit, 'X-Total-Pages': Math.ceil(total / limit) });
-  res.json(data.rows);
+  res.json(orders);
 };
 
 // GET /v1/orders/:id

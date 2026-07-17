@@ -3,7 +3,7 @@ const { body, param, query } = require('express-validator');
 
 const VALID_SORTS       = ['created_at', 'total_amount', 'status'];
 const VALID_ORDERS      = ['asc', 'desc'];
-const VALID_STATUSES    = ['PENDING', 'CONFIRMED', 'FAILED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+const VALID_STATUSES    = ['PENDING', 'CONFIRMED', 'FAILED', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'];
 
 exports.paginationValidators = [
   query('page').optional()
