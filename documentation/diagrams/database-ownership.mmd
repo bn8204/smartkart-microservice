@@ -1,0 +1,45 @@
+graph TB
+    subgraph UC["user-service"]
+        US_CODE["Controllers\nRoutes\nValidators"]
+    end
+    subgraph UDB["sc_users (PostgreSQL)"]
+        T_USERS["users\n(id, name, email, password, role)"]
+        IDX_EMAIL["idx_users_email"]
+        IDX_ROLE["idx_users_role"]
+    end
+    
+    subgraph PC["product-service"]
+        PS_CODE["Controllers\nRoutes\nValidators"]
+    end
+    subgraph PDB["sc_products (PostgreSQL)"]
+        T_PRODS["products\n(id, name, price, stock, category)"]
+        IDX_CAT["idx_products_category"]
+        IDX_PRICE["idx_products_price"]
+    end
+    
+    subgraph OC["order-service"]
+        OS_CODE["Controllers\nRoutes\nSaga Publisher"]
+    end
+    subgraph ODB["sc_orders (PostgreSQL)"]
+        T_CARTS["carts"]
+        T_CART_ITEMS["cart_items\n(UNIQUE cart_id+product_id)"]
+        T_ORDERS["orders\n(status: PENDING→CONFIRMED)"]
+        T_ORDER_ITEMS["order_items\n(product_name snapshot)"]
+    end
+    
+    subgraph PAC["payment-service"]
+        PAY_CODE["Controllers\nRoutes\nSaga Consumer"]
+    end
+    subgraph PADB["sc_payments (PostgreSQL)"]
+        T_PAYMENTS["payments\n(append-only event log)"]
+        IDX_ORDER["idx_payments_order"]
+    end
+    
+    UC -->|owns exclusively| UDB
+    PC -->|owns exclusively| PDB
+    OC -->|owns exclusively| ODB
+    PAC -->|owns exclusively| PADB
+    
+    OC -.->|REST call: GET price| PC
+    OC -.->|REST call: PATCH stock| PC
+    OC -.->|logical ref user_id| UC

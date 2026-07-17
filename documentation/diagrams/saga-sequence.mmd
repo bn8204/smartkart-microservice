@@ -1,0 +1,38 @@
+sequenceDiagram
+    participant C as Client
+    participant OS as order-service
+    participant PS as product-service
+    participant RMQ as RabbitMQ
+    participant PAY as payment-service
+
+    C->>OS: POST /checkout\n{ user_id, items: [{product_id, qty}] }
+    
+    Note over OS: STEP 1: Fetch authoritative prices
+    OS->>PS: GET /v1/products/1 (timeout 5s)
+    PS-->>OS: { price: 79.99 }
+    
+    Note over OS: BEGIN DB TRANSACTION
+    OS->>OS: INSERT order (PENDING)
+    OS->>OS: INSERT order_items
+    OS->>OS: DELETE cart items
+    Note over OS: COMMIT TRANSACTION
+    
+    OS->>PS: PATCH /products/1/stock { delta: -1 }
+    
+    Note over OS: STEP 1 COMPLETE → publish event
+    OS->>RMQ: publish order.placed\n{ orderId:5, amount:79.99 }
+    OS-->>C: 201 { order: {status: PENDING} }
+    
+    Note over PAY: STEP 2: Process payment
+    RMQ->>PAY: consume order.placed
+    PAY->>PAY: INSERT payment (PENDING)
+    PAY->>PAY: Simulate gateway → SUCCESS
+    PAY->>PAY: UPDATE payment → SUCCESS
+    PAY->>RMQ: publish payment.processed\n{ orderId:5, status: SUCCESS }
+    
+    Note over OS: STEP 3: Confirm order
+    RMQ->>OS: consume payment.processed
+    OS->>OS: UPDATE order → CONFIRMED
+    
+    C->>OS: GET /orders/5
+    OS-->>C: { status: CONFIRMED }

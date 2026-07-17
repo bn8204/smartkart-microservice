@@ -1,0 +1,250 @@
+# SmartCart Microservices — Docker Compose
+# Each microservice runs in its own container with its own database.
+# Pattern: Database per Microservice
+# Messaging: RabbitMQ for async Saga between order-service and payment-service
+#
+# ── Prerequisites ─────────────────────────────────────────────────────────────
+# Copy .env.example to .env and fill in your values before running:
+#   cp .env.example .env
+#   docker-compose up --build
+#
+# For a clean start (clears DB volumes and RabbitMQ queues):
+#   docker-compose down -v && docker-compose up --build
+
+networks:
+  smartcart-net:
+    driver: bridge
+
+# ── Per-service PostgreSQL databases ─────────────────────────────────────────
+services:
+
+  postgres-users:
+    image: postgres:15-alpine
+    container_name: sc-postgres-users
+    environment:
+      POSTGRES_DB: sc_users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - ./user-service/src/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - pg_users_data:/var/lib/postgresql/data
+    networks: [smartcart-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sc_users"]
+      interval: 5s
+      retries: 5
+
+  postgres-products:
+    image: postgres:15-alpine
+    container_name: sc-postgres-products
+    environment:
+      POSTGRES_DB: sc_products
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - ./product-service/src/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - pg_products_data:/var/lib/postgresql/data
+    networks: [smartcart-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sc_products"]
+      interval: 5s
+      retries: 5
+
+  postgres-orders:
+    image: postgres:15-alpine
+    container_name: sc-postgres-orders
+    environment:
+      POSTGRES_DB: sc_orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - ./order-service/src/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - pg_orders_data:/var/lib/postgresql/data
+    networks: [smartcart-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sc_orders"]
+      interval: 5s
+      retries: 5
+
+  postgres-payments:
+    image: postgres:15-alpine
+    container_name: sc-postgres-payments
+    environment:
+      POSTGRES_DB: sc_payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    volumes:
+      - ./payment-service/src/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - pg_payments_data:/var/lib/postgresql/data
+    networks: [smartcart-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sc_payments"]
+      interval: 5s
+      retries: 5
+
+# ── RabbitMQ message broker ───────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: sc-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # Management UI (http://localhost:15672)
+    environment:
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+      # HOME=/tmp ensures the Erlang cookie file is written to /tmp/.erlang.cookie
+      # (always writable), bypassing the VOLUME /var/lib/rabbitmq permission issue
+      # that occurs with Podman rootless mode on Windows/WSL2.
+      HOME: /tmp
+    networks: [smartcart-net]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+# ── Microservices ─────────────────────────────────────────────────────────────
+  user-service:
+    build: ./user-service
+    container_name: sc-user-service
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      SERVICE_NAME: user-service
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PG_HOST: postgres-users
+      PG_PORT: 5432
+      PG_USER: postgres
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DBNAME: sc_users
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRY: ${JWT_EXPIRY:-7d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+    networks: [smartcart-net]
+    restart: unless-stopped
+
+  product-service:
+    build: ./product-service
+    container_name: sc-product-service
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      SERVICE_NAME: product-service
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PG_HOST: postgres-products
+      PG_PORT: 5432
+      PG_USER: postgres
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DBNAME: sc_products
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    depends_on:
+      postgres-products:
+        condition: service_healthy
+    networks: [smartcart-net]
+    restart: unless-stopped
+
+  order-service:
+    build: ./order-service
+    container_name: sc-order-service
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      SERVICE_NAME: order-service
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PG_HOST: postgres-orders
+      PG_PORT: 5432
+      PG_USER: postgres
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DBNAME: sc_orders
+      PRODUCT_SERVICE_URL: http://product-service:3002
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks: [smartcart-net]
+    restart: unless-stopped
+
+  payment-service:
+    build: ./payment-service
+    container_name: sc-payment-service
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      SERVICE_NAME: payment-service
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PG_HOST: postgres-payments
+      PG_PORT: 5432
+      PG_USER: postgres
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_DBNAME: sc_payments
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8080}
+    depends_on:
+      postgres-payments:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [smartcart-net]
+    restart: unless-stopped
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: sc-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      SERVICE_NAME: api-gateway
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      JWT_SECRET: ${JWT_SECRET}
+      USER_SERVICE_URL: http://user-service:3001
+      PRODUCT_SERVICE_URL: http://product-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
+      PAYMENT_SERVICE_URL: http://payment-service:3004
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    depends_on:
+      - user-service
+      - product-service
+      - order-service
+      - payment-service
+    networks: [smartcart-net]
+    restart: unless-stopped
+
+# ── React Frontend ────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: C:/APPLICATION/E-com/smartcart-frontend
+    container_name: sc-frontend
+    ports:
+      - "3000:3003"       # host:3000 → container:3003 (serve listens on 3003)
+    depends_on:
+      - api-gateway
+    networks: [smartcart-net]
+    restart: unless-stopped
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  pg_users_data:
+  pg_products_data:
+  pg_orders_data:
+  pg_payments_data:

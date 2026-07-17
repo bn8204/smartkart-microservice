@@ -1,0 +1,14 @@
+node_modules/
+npm-debug.log*
+.env
+.env.local
+.env.*
+!.env.example
+logs/
+coverage/
+__tests__/
+*.test.js
+.git/
+.gitignore
+.github/
+*.md

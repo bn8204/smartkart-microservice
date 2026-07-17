@@ -1,0 +1,25 @@
+graph LR
+    subgraph Host["Windows Host"]
+        subgraph Podman["Podman Engine (WSL2)"]
+            subgraph Net["smartcart-net bridge"]
+                FE["sc-frontend\n:3000"]
+                GW["sc-api-gateway\n:8080"]
+                US["sc-user-service\n:3001"]
+                PS["sc-product-service\n:3002"]
+                OS["sc-order-service\n:3003"]
+                PAY["sc-payment-service\n:3004"]
+                DB1[("sc-postgres-users\n:5432")]
+                DB2[("sc-postgres-products\n:5432")]
+                DB3[("sc-postgres-orders\n:5432")]
+                DB4[("sc-postgres-payments\n:5432")]
+                RMQ["sc-rabbitmq\n:5672/:15672"]
+            end
+        end
+    end
+    
+    FE --> GW
+    GW --> US & PS & OS & PAY
+    US --> DB1
+    PS --> DB2
+    OS --> DB3 & RMQ
+    PAY --> DB4 & RMQ

@@ -1,0 +1,36 @@
+C4Container
+    title Container Diagram — SmartCart Microservices
+
+    Person(user, "Customer", "Uses SmartCart to browse and purchase")
+    Person(admin, "Admin", "Manages products and orders")
+
+    System_Boundary(sc, "SmartCart Platform") {
+        Container(fe, "Frontend", "React, serve:3000", "SPA for all user interactions")
+        Container(gw, "API Gateway", "Node.js Express :8080", "Single entry point. JWT auth, rate limiting, routing")
+        Container(us, "user-service", "Node.js Express :3001", "Registration, login, JWT issuance")
+        Container(ps, "product-service", "Node.js Express :3002", "Product catalog, stock management")
+        Container(os, "order-service", "Node.js Express :3003", "Cart, checkout, Saga publisher")
+        Container(pay, "payment-service", "Node.js Express :3004", "Payment processing, Saga consumer")
+        ContainerDb(db1, "sc_users", "PostgreSQL :5432", "User accounts")
+        ContainerDb(db2, "sc_products", "PostgreSQL :5432", "Product catalog")
+        ContainerDb(db3, "sc_orders", "PostgreSQL :5432", "Carts and orders")
+        ContainerDb(db4, "sc_payments", "PostgreSQL :5432", "Payment ledger")
+        Container(rmq, "RabbitMQ", "AMQP :5672", "Message broker for Saga")
+    }
+
+    Rel(user, fe, "HTTP :3000")
+    Rel(admin, fe, "HTTP :3000")
+    Rel(fe, gw, "HTTP :8080")
+    Rel(gw, us, "HTTP proxy")
+    Rel(gw, ps, "HTTP proxy")
+    Rel(gw, os, "HTTP proxy")
+    Rel(gw, pay, "HTTP proxy")
+    Rel(us, db1, "SQL")
+    Rel(ps, db2, "SQL")
+    Rel(os, db3, "SQL")
+    Rel(os, ps, "REST (price/stock)")
+    Rel(os, rmq, "AMQP publish")
+    Rel(rmq, pay, "AMQP consume")
+    Rel(pay, db4, "SQL")
+    Rel(pay, rmq, "AMQP publish")
+    Rel(rmq, os, "AMQP consume")

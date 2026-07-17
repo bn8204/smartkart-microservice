@@ -1,0 +1,50 @@
+graph TB
+    subgraph Frontend["Frontend Layer"]
+        UI["React SPA\nProduct Browse | Cart | Checkout\nAdmin Dashboard | Order Tracking"]
+    end
+    
+    subgraph APILayer["API Gateway Layer"]
+        GW["API Gateway\nJWT Auth | Rate Limit | CORS\nRouting | Composition\nSwagger | Metrics | Health"]
+    end
+    
+    subgraph ServiceLayer["Service Layer"]
+        subgraph US["user-service"]
+            UC["UserController"]
+            UV["UserValidators"]
+            UL["Logger"]
+            UM["ErrorHandler | RequestId"]
+        end
+        subgraph PS["product-service"]
+            PC["ProductController"]
+            PV["ProductValidators"]
+            PL["Logger"]
+        end
+        subgraph OS["order-service"]
+            OC["OrderController"]
+            OV["OrderValidators"]
+            OP["Publisher (order.placed)"]
+            OCO["Consumer (payment.processed)"]
+        end
+        subgraph PAY["payment-service"]
+            PAC["PaymentController"]
+            PAP["Publisher (payment.processed)"]
+            PACO["Consumer (order.placed)"]
+        end
+    end
+    
+    subgraph InfraLayer["Infrastructure Layer"]
+        PG1[("sc_users\nPostgres")]
+        PG2[("sc_products\nPostgres")]
+        PG3[("sc_orders\nPostgres")]
+        PG4[("sc_payments\nPostgres")]
+        RMQ["RabbitMQ\norder.placed\npayment.processed"]
+    end
+    
+    UI --> GW
+    GW --> US & PS & OS & PAY
+    US --> PG1
+    PS --> PG2
+    OS --> PG3
+    PAY --> PG4
+    OS --> RMQ
+    RMQ --> PAY & OS

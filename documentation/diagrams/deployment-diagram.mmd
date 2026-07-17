@@ -1,0 +1,43 @@
+graph TB
+    subgraph internet["Internet / Intranet"]
+        DEV["Developer / Student\n(Browser or Postman)"]
+    end
+    
+    subgraph windowshost["Windows Host Machine"]
+        subgraph wsl2["WSL2 (Linux VM)"]
+            subgraph podman["Podman 5.8 Engine"]
+                subgraph compose["docker-compose v5 (via podman compose)"]
+                    subgraph network["Bridge Network: smartcart-net"]
+                        FE["sc-frontend\nNode 18-alpine + serve\nPort: 3000"]
+                        GW["sc-api-gateway\nNode 20-alpine\nPort: 8080"]
+                        US["sc-user-service\nNode 20-alpine\nPort: 3001"]
+                        PS["sc-product-service\nNode 20-alpine\nPort: 3002"]
+                        OS["sc-order-service\nNode 20-alpine\nPort: 3003"]
+                        PAY["sc-payment-service\nNode 20-alpine\nPort: 3004"]
+                        PG1[("sc-postgres-users\npostgres:15-alpine")]
+                        PG2[("sc-postgres-products\npostgres:15-alpine")]
+                        PG3[("sc-postgres-orders\npostgres:15-alpine")]
+                        PG4[("sc-postgres-payments\npostgres:15-alpine")]
+                        RMQ["sc-rabbitmq\nrabbitmq:3-management-alpine\nAMQP: 5672 | UI: 15672"]
+                    end
+                end
+            end
+        end
+        
+        subgraph volumes["Named Volumes (Persistent)"]
+            V1["pg_users_data"]
+            V2["pg_products_data"]
+            V3["pg_orders_data"]
+            V4["pg_payments_data"]
+        end
+    end
+    
+    DEV -->|:3000| FE
+    DEV -->|:8080| GW
+    DEV -->|:15672| RMQ
+    
+    GW --> US & PS & OS & PAY
+    PG1 -.- V1
+    PG2 -.- V2
+    PG3 -.- V3
+    PG4 -.- V4

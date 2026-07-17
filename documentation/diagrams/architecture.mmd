@@ -1,0 +1,40 @@
+graph TB
+    Browser["🌐 Browser\nReact SPA :3000"]
+    
+    subgraph Gateway["API Gateway :8080"]
+        GW_JWT["JWT Verify"]
+        GW_RL["Rate Limiter"]
+        GW_PROXY["Request Router"]
+    end
+    
+    subgraph Services["Microservices"]
+        US["user-service\n:3001"]
+        PS["product-service\n:3002"]
+        OS["order-service\n:3003"]
+        PAY["payment-service\n:3004"]
+    end
+    
+    subgraph DataLayer["Data Layer"]
+        DB1[("sc_users\nPostgres")]
+        DB2[("sc_products\nPostgres")]
+        DB3[("sc_orders\nPostgres")]
+        DB4[("sc_payments\nPostgres")]
+        RMQ["🐰 RabbitMQ\n:5672"]
+    end
+    
+    Browser -->|HTTP :8080| Gateway
+    Gateway -->|proxy| US
+    Gateway -->|proxy| PS
+    Gateway -->|proxy| OS
+    Gateway -->|proxy| PAY
+    
+    OS -->|GET price\nPATCH stock| PS
+    OS -->|publish order.placed| RMQ
+    RMQ -->|consume order.placed| PAY
+    PAY -->|publish payment.processed| RMQ
+    RMQ -->|consume payment.processed| OS
+    
+    US --- DB1
+    PS --- DB2
+    OS --- DB3
+    PAY --- DB4

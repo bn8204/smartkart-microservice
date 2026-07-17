@@ -1,0 +1,128 @@
+# ============================================================
+# SmartCart Microservices — CI/CD Pipeline
+# ============================================================
+# Triggers: push/PR to main or develop
+# Jobs:
+#   test     — lint + unit + integration tests per service (matrix)
+#   build    — Docker image build + compose validation
+# ============================================================
+name: SmartCart CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+# ── Job 1: Run tests for every microservice in parallel ──────────────────────
+jobs:
+  test:
+    name: Test — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false            # All services run even if one fails
+      matrix:
+        service:
+          - user-service
+          - product-service
+          - order-service
+          - payment-service
+          - api-gateway
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.service }}
+        run: npm install
+
+      - name: Run unit + integration tests with coverage
+        working-directory: ${{ matrix.service }}
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-jwt-secret
+          LOG_LEVEL: silent
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/coverage
+          retention-days: 7
+
+# ── Job 2: Build Docker images and validate compose ──────────────────────────
+  build:
+    name: Build & Validate Docker
+    runs-on: ubuntu-latest
+    needs: test            # Only runs if all tests pass
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env from example
+        run: cp .env.example .env
+
+      - name: Validate docker-compose syntax
+        run: docker compose config --quiet
+
+      - name: Build all service images
+        run: docker compose build
+        env:
+          DOCKER_BUILDKIT: 1
+          COMPOSE_DOCKER_CLI_BUILD: 1
+
+      - name: Verify images were built
+        run: docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+
+# ── Job 3: Security scan (optional, non-blocking) ────────────────────────────
+  security:
+    name: npm audit — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    # Run independently; don't block on test failures
+    if: github.event_name == 'push'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - user-service
+          - product-service
+          - order-service
+          - payment-service
+          - api-gateway
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install dependencies
+        working-directory: ${{ matrix.service }}
+        run: npm install
+      - name: Run npm audit (high severity)
+        working-directory: ${{ matrix.service }}
+        # Fail only on high/critical severity vulnerabilities
+        run: npm audit --audit-level=high || true
