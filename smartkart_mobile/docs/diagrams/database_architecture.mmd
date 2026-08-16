@@ -1,0 +1,41 @@
+```mermaid
+graph TB
+    subgraph "User Service Database: sc_users"
+        U[USERS<br/>id, name, email, password, role]
+    end
+    
+    subgraph "Product Service Database: sc_products"
+        P[PRODUCTS<br/>id, name, description, price, stock, category]
+    end
+    
+    subgraph "Order Service Database: sc_orders"
+        C[CARTS<br/>id, user_id]
+        CI[CART_ITEMS<br/>id, cart_id, product_id, quantity, unit_price]
+        O[ORDERS<br/>id, user_id, total_amount, status, shipping_address]
+        OI[ORDER_ITEMS<br/>id, order_id, product_id, product_name, quantity, unit_price]
+        
+        C -->|1:N| CI
+        O -->|1:N| OI
+    end
+    
+    subgraph "Payment Service Database: sc_payments"
+        PAY[PAYMENTS<br/>id, order_id, user_id, amount, status, payment_method]
+    end
+    
+    U -.->|logical FK| C
+    U -.->|logical FK| O
+    U -.->|logical FK| PAY
+    
+    P -.->|logical FK| CI
+    P -.->|logical FK| OI
+    
+    O -.->|logical FK| PAY
+    
+    style U fill:#2196F3,stroke:#1976D2,stroke-width:2px,color:#fff
+    style P fill:#4CAF50,stroke:#388E3C,stroke-width:2px,color:#fff
+    style C fill:#FFC107,stroke:#FFA000,stroke-width:2px,color:#000
+    style CI fill:#FFC107,stroke:#FFA000,stroke-width:2px,color:#000
+    style O fill:#FFC107,stroke:#FFA000,stroke-width:2px,color:#000
+    style OI fill:#FFC107,stroke:#FFA000,stroke-width:2px,color:#000
+    style PAY fill:#FF5722,stroke:#E64A19,stroke-width:2px,color:#fff
+```

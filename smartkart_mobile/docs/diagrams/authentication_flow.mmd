@@ -1,0 +1,33 @@
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant S as Login Screen
+    participant AC as AuthController
+    participant AR as AuthRepository
+    participant AS as AuthService
+    participant D as Dio Client
+    participant G as API Gateway
+    participant US as User Service
+    participant SS as SecureStorage
+    participant R as GoRouter
+    
+    U->>S: Enter email & password
+    S->>AC: login(email, password)
+    AC->>AR: login(email, password)
+    AR->>AS: login(email, password)
+    AS->>D: POST /auth/login
+    D->>G: HTTP Request + headers
+    G->>US: Proxy to User Service
+    US->>US: Validate credentials
+    US-->>G: {user, token}
+    G-->>D: 200 OK + JSON
+    D-->>AS: Response
+    AS-->>AR: UserModel + token
+    AR->>SS: saveToken(token)
+    AR->>SS: saveUserId(userId)
+    AR-->>AC: UserModel
+    AC->>AC: Update state
+    AC-->>S: Success
+    S->>R: Navigate to /home
+    R->>U: Show Home Screen
+```

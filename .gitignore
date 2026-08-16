@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+build/
+dist/
+*/build/
+*/dist/
+
+# Test coverage
+coverage/
+*/coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter/Dart
+smartkart_mobile/.dart_tool/
+smartkart_mobile/.flutter-plugins
+smartkart_mobile/.flutter-plugins-dependencies
+smartkart_mobile/.packages
+smartkart_mobile/build/
+smartkart_mobile/.metadata
+smartkart_mobile/pubspec.lock
+smartkart_mobile/**/*.g.dart
+smartkart_mobile/**/*.freezed.dart
+
+# Android
+smartkart_mobile/android/.gradle/
+smartkart_mobile/android/app/debug/
+smartkart_mobile/android/app/profile/
+smartkart_mobile/android/app/release/
+smartkart_mobile/android/.idea/
+smartkart_mobile/android/local.properties
+smartkart_mobile/android/key.properties
+smartkart_mobile/android/**/*.iml
+
+# iOS
+smartkart_mobile/ios/Pods/
+smartkart_mobile/ios/.symlinks/
+smartkart_mobile/ios/Flutter/Flutter.framework
+smartkart_mobile/ios/Flutter/Flutter.podspec
+smartkart_mobile/ios/.generated/
+smartkart_mobile/ios/Runner.xcworkspace/xcuserdata/
+smartkart_mobile/ios/Runner.xcodeproj/xcuserdata/
+smartkart_mobile/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore

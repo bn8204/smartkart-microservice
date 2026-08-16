@@ -92,6 +92,39 @@
 
 ---
 
+## 📱 Cross-Platform Support
+
+SmartKart supports multiple client platforms:
+
+| Platform | Technology | Status | Access |
+|----------|-----------|--------|--------|
+| **🌐 Web** | React 18 SPA | ✅ Production | http://localhost:3000 |
+| **📱 Android** | Flutter 3.x | ✅ Production | Native APK |
+| **🍎 iOS** | Flutter 3.x | ✅ Ready | Native IPA |
+| **💻 Desktop** | Flutter/Web | 🔄 Planned | Windows/Mac/Linux |
+
+### Mobile App Features
+
+The Flutter mobile app (`smartkart_mobile/`) provides:
+- 🎨 Native Android/iOS experience with Material Design 3
+- 🔐 Secure JWT authentication with device keychain storage
+- 🛒 Full e-commerce functionality (browse, cart, checkout, orders)
+- ⚡ Hot reload for instant development
+- 📊 Clean architecture with Riverpod state management
+- 🌐 Offline-first with connectivity detection
+- 📱 Responsive UI for phones and tablets
+
+**Quick Start:**
+```powershell
+cd smartkart_mobile
+flutter pub get
+flutter run --dart-define=GATEWAY_BASE_URL=http://YOUR_IP:8080/api/v1
+```
+
+See [`smartkart_mobile/README.md`](smartkart_mobile/README.md) for detailed setup instructions.
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -226,6 +259,7 @@ smartcart-microservices/
 ├── order-service/         # Cart, orders & Saga publisher
 ├── payment-service/       # Payments & Saga consumer
 ├── frontend/              # Dockerfile for React SPA
+├── smartkart_mobile/      # 📱 Flutter mobile app (Android/iOS)
 │
 ├── docker-compose.yml     # Full stack orchestration
 ├── .env.example           # Environment variables template
