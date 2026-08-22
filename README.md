@@ -315,8 +315,4 @@ Comprehensive documentation in [`documentation/`](documentation/):
 
 ## 📜 License
 
-Academic project — BITS Pilani M.Tech Secure Software Engineering 2026.
-
----
-
-*SmartCart Microservices v1.0.0 | Built with ❤️ for BITS Pilani*
+MIT License
